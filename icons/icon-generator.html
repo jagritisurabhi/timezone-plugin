@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gmail Timezone Helper - Icon Generator</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        canvas { border: 1px solid #ccc; margin: 10px; }
+        button { padding: 10px 20px; margin: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Gmail Timezone Helper - Icon Generator</h1>
+    <p>Click "Generate Icons" to create the PNG files, then right-click and save each canvas as PNG.</p>
+    
+    <div>
+        <canvas id="icon16" width="16" height="16"></canvas>
+        <canvas id="icon48" width="48" height="48"></canvas>
+        <canvas id="icon128" width="128" height="128"></canvas>
+    </div>
+    
+    <button onclick="generateIcons()">Generate Icons</button>
+    <button onclick="downloadAll()">Download All Icons</button>
+
+    <script>
+        function generateIcons() {
+            [16, 48, 128].forEach(size => {
+                const canvas = document.getElementById(`icon${size}`);
+                const ctx = canvas.getContext('2d');
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, size, size);
+                
+                // Draw blue circle background
+                ctx.fillStyle = '#4285f4';
+                ctx.beginPath();
+                ctx.arc(size/2, size/2, size/2 - 2, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Draw white circle inside
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(size/2, size/2, size/3, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Draw clock hands
+                ctx.strokeStyle = '#5f6368';
+                ctx.lineWidth = Math.max(1, size/32);
+                ctx.lineCap = 'round';
+                
+                // Hour hand
+                ctx.beginPath();
+                ctx.moveTo(size/2, size/2);
+                ctx.lineTo(size/2, size/2 - size/4);
+                ctx.stroke();
+                
+                // Minute hand
+                ctx.beginPath();
+                ctx.moveTo(size/2, size/2);
+                ctx.lineTo(size/2 + size/4, size/2);
+                ctx.stroke();
+                
+                // Center dot
+                ctx.fillStyle = '#5f6368';
+                ctx.beginPath();
+                ctx.arc(size/2, size/2, Math.max(1, size/32), 0, 2 * Math.PI);
+                ctx.fill();
+            });
+        }
+        
+        function downloadAll() {
+            [16, 48, 128].forEach(size => {
+                const canvas = document.getElementById(`icon${size}`);
+                const link = document.createElement('a');
+                link.download = `icon${size}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+            });
+        }
+        
+        // Generate icons on page load
+        window.onload = generateIcons;
+    </script>
+</body>
+</html>

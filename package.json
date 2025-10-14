@@ -1,0 +1,30 @@
+{
+  "name": "gmail-timezone-helper",
+  "version": "1.0.0",
+  "description": "A Chrome extension that adds a timezone column to Gmail calendar",
+  "main": "content.js",
+  "scripts": {
+    "build": "echo 'No build process needed for Chrome extension'",
+    "test": "echo 'No tests specified'",
+    "lint": "echo 'No linting configured'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/gmail-timezone-plugin.git"
+  },
+  "keywords": [
+    "gmail",
+    "timezone",
+    "calendar",
+    "chrome-extension",
+    "productivity"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yourusername/gmail-timezone-plugin/issues"
+  },
+  "homepage": "https://yourusername.github.io/gmail-timezone-plugin",
+  "devDependencies": {},
+  "dependencies": {}
+}
