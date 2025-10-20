@@ -4,11 +4,11 @@ A Chrome extension that adds a timezone column to your Gmail calendar, helping y
 
 ## Features
 
-- 🌍 **Multi-timezone Support**: View your calendar events in any timezone
-- ⚡ **Real-time Conversion**: Automatically converts times as you browse
-- 🎨 **Seamless Integration**: Blends naturally with Gmail's interface
-- ⚙️ **Easy Configuration**: Simple timezone selector with popular timezones
-- 💾 **Persistent Settings**: Remembers your preferred timezone
+- **Multi-timezone Support**: View your calendar events in any timezone
+- **Real-time Conversion**: Automatically converts times as you browse
+- **Seamless Integration**: Blends naturally with Gmail's interface
+- **Easy Configuration**: Simple timezone selector with popular timezones
+- **Persistent Settings**: Remembers your preferred timezone
 
 ## Screenshots
 
@@ -42,7 +42,7 @@ The extension adds a timezone column next to your Gmail calendar, showing conver
 ## Usage
 
 1. **Open Gmail** and navigate to your calendar view
-2. **Select Timezone**: Click the gear icon (⚙️) in the timezone column header
+2. **Select Timezone**: Click the settings button in the timezone column header
 3. **Choose Your Timezone**: Select from popular timezones or use the extension popup
 4. **View Converted Times**: Your events will now show in both your local time and the selected timezone
 

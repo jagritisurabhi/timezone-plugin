@@ -11,15 +11,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   currentTimezoneEl.textContent = getTimezoneDisplayName(selectedTimezone);
 
-  // Check if we're on Gmail
+  // Check if we're on Gmail/Calendar
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  const isGmail = tab.url.includes('mail.google.com') || tab.url.includes('calendar.google.com');
+  const isGmail = tab && (tab.url.includes('mail.google.com') || tab.url.includes('calendar.google.com'));
   
   if (isGmail) {
-    statusEl.textContent = 'Active on Gmail';
-    statusEl.className = 'status active';
+    if (tab.url.includes('calendar.google.com')) {
+      statusEl.textContent = 'Active on Google Calendar';
+      statusEl.className = 'status active';
+    } else {
+      statusEl.textContent = 'Open Google Calendar to see timezone column';
+      statusEl.className = 'status inactive';
+    }
   } else {
-    statusEl.textContent = 'Please open Gmail to use this extension';
+    statusEl.textContent = 'Please open Google Calendar';
     statusEl.className = 'status inactive';
   }
 
@@ -31,11 +36,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Refresh button
   refreshBtn.addEventListener('click', async () => {
     if (isGmail) {
-      await chrome.tabs.sendMessage(tab.id, { action: 'refreshTimezoneColumn' });
-      statusEl.textContent = 'Calendar refreshed';
-      setTimeout(() => {
-        statusEl.textContent = 'Active on Gmail';
-      }, 2000);
+      try {
+        await chrome.tabs.sendMessage(tab.id, { action: 'refreshTimezoneColumn' });
+        statusEl.textContent = 'Timezone display refreshed';
+        statusEl.className = 'status active';
+        setTimeout(() => {
+          statusEl.textContent = 'Active on Google Calendar';
+        }, 2000);
+      } catch (error) {
+        statusEl.textContent = 'Error: Please reload the page';
+        statusEl.className = 'status inactive';
+      }
+    } else {
+      statusEl.textContent = 'Please open Google Calendar';
+      statusEl.className = 'status inactive';
     }
   });
 
@@ -118,17 +132,27 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       // Send message to content script to update timezone
       if (isGmail) {
-        await chrome.tabs.sendMessage(tab.id, { 
-          action: 'updateTimezone', 
-          timezone: newTimezone 
-        });
+        try {
+          await chrome.tabs.sendMessage(tab.id, { 
+            action: 'updateTimezone', 
+            timezone: newTimezone 
+          });
+          statusEl.textContent = 'Timezone updated';
+          statusEl.className = 'status active';
+        } catch (error) {
+          // Content script not ready yet - that's ok, it will load on page refresh
+          statusEl.textContent = 'Timezone saved. Refresh page to see changes.';
+          statusEl.className = 'status active';
+        }
+      } else {
+        statusEl.textContent = 'Timezone saved. Open Google Calendar to use.';
+        statusEl.className = 'status active';
       }
 
       // Restore UI
       select.remove();
       buttonContainer.remove();
       changeTimezoneBtn.style.display = 'block';
-      statusEl.textContent = 'Timezone updated';
     });
 
     cancelBtn.addEventListener('click', () => {

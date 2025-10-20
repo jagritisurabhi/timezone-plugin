@@ -25,6 +25,7 @@
     "url": "https://github.com/yourusername/gmail-timezone-plugin/issues"
   },
   "homepage": "https://yourusername.github.io/gmail-timezone-plugin",
-  "devDependencies": {},
-  "dependencies": {}
+  "dependencies": {
+    "canvas": "^3.2.0"
+  }
 }
