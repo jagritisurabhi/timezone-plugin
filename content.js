@@ -3,7 +3,22 @@ class GmailTimezoneHelper {
   constructor() {
     this.timezoneColumnAdded = false;
     this.selectedTimezone = 'America/New_York'; // Default timezone
+    this.updateInterval = null;
+    this.observer = null;
     this.init();
+  }
+  
+  cleanup() {
+    // Clean up intervals and observers
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval);
+      this.updateInterval = null;
+    }
+    if (this.observer) {
+      this.observer.disconnect();
+      this.observer = null;
+    }
+    console.log('[Timezone Helper] Cleaned up resources');
   }
 
   async init() {
@@ -22,8 +37,8 @@ class GmailTimezoneHelper {
     let attempts = 0;
     const checkInterval = setInterval(() => {
       attempts++;
-      if (attempts > 30) {
-        console.log('[Timezone Helper] Stopped checking after 30 attempts');
+      if (attempts > 20) {
+        console.log('[Timezone Helper] Stopped checking after 20 attempts');
         clearInterval(checkInterval);
         return;
       }
@@ -37,7 +52,7 @@ class GmailTimezoneHelper {
       } else {
         clearInterval(checkInterval);
       }
-    }, 1000);
+    }, 1500); // Check every 1.5 seconds instead of 1 second
   }
 
   addTimezoneColumn() {
@@ -55,147 +70,161 @@ class GmailTimezoneHelper {
       return false;
     }
 
-    // Look for the calendar grid - Google Calendar uses various structures
-    const calendarGrid = calendarMain.querySelector('[role="presentation"]') ||
-                        calendarMain.querySelector('.fDfEYb') || // Week view container
-                        calendarMain.querySelector('[data-view-heading]');
+    console.log('[Timezone Helper] Found main container, injecting column');
     
-    if (calendarGrid) {
-      console.log('[Timezone Helper] Found calendar grid, injecting column');
-      this.injectTimezoneColumn(calendarMain);
-      return true;
-    }
-
-    console.log('[Timezone Helper] Calendar grid not found yet');
-    return false;
+    // Just inject - don't wait for specific grid
+    this.injectIntoCalendarGrid(calendarMain);
+    return true;
   }
 
-  injectTimezoneColumn(container) {
-    if (this.timezoneColumnAdded) return;
-    
-    // Check if timezone column already exists in DOM (from previous instance)
-    if (document.getElementById('timezone-helper-column')) {
-      this.timezoneColumnAdded = true;
-      return;
-    }
+  injectIntoCalendarGrid(calendarMain) {
+    console.log('[Timezone Helper] Injecting timezone column directly...');
 
-    console.log('[Timezone Helper] Injecting timezone column into calendar');
+    // Create a very visible test column first
+    const timezoneColumn = document.createElement('div');
+    timezoneColumn.id = 'timezone-helper-column';
+    timezoneColumn.style.cssText = `
+      position: fixed;
+      left: 240px;
+      top: 64px;
+      bottom: 0;
+      width: 120px;
+      background: white;
+      border-right: 2px solid #1a73e8;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      font-family: 'Google Sans', 'Roboto', Arial, sans-serif;
+    `;
     
-    // Find the calendar grid structure
-    this.injectIntoCalendarGrid();
-    
-    this.timezoneColumnAdded = true;
-  }
-  
-  injectIntoCalendarGrid() {
-    // Strategy: Add a sidebar that mimics Google Calendar's style
-    const calendarContainer = document.querySelector('[role="main"]');
-    if (!calendarContainer) {
-      console.log('[Timezone Helper] Calendar container not found');
-      return;
-    }
-
-    // Create the timezone column as a sidebar
-    const timezoneSidebar = document.createElement('div');
-    timezoneSidebar.id = 'timezone-helper-column';
-    timezoneSidebar.className = 'timezone-helper-sidebar';
-    timezoneSidebar.innerHTML = `
-      <div class="timezone-sidebar-header">
-        <div class="timezone-sidebar-title">${this.getTimezoneDisplayName(this.selectedTimezone)}</div>
-        <button class="timezone-settings-btn" title="Change Timezone">Settings</button>
+    timezoneColumn.innerHTML = `
+      <div style="padding: 8px; border-bottom: 1px solid #dadce0; background: #f8f9fa; color: #3c4043; font-weight: 500; font-size: 11px; text-align: center;">
+        <div id="timezone-title-display" style="margin-bottom: 4px;">${this.getTimezoneDisplayName(this.selectedTimezone)}</div>
+        <button class="timezone-settings-btn" style="background: white; border: 1px solid #dadce0; cursor: pointer; font-size: 10px; padding: 3px 6px; border-radius: 3px; color: #5f6368; width: 100%;">Change</button>
       </div>
-      <div class="timezone-sidebar-content" id="timezone-sidebar-content">
-        <div class="timezone-status">Loading times...</div>
+      <div id="timezone-column-body" style="padding: 8px; overflow-y: auto; flex: 1; font-size: 11px;">
+        <div style="color: #5f6368; text-align: center; margin-top: 10px; font-size: 10px;">
+          Loading...
+        </div>
       </div>
     `;
 
-    // Add click handler for settings
-    timezoneSidebar.querySelector('.timezone-settings-btn').addEventListener('click', () => {
-      this.showTimezoneSelector();
-    });
-
-    // Insert the sidebar into the page
-    try {
-      calendarContainer.appendChild(timezoneSidebar);
-      console.log('[Timezone Helper] Sidebar injected successfully');
-      
-      // Start observing for calendar events
-      this.observeCalendarEvents();
-    } catch (error) {
-      console.error('[Timezone Helper] Error injecting sidebar:', error);
+    // Add click handler
+    const settingsBtn = timezoneColumn.querySelector('.timezone-settings-btn');
+    if (settingsBtn) {
+      settingsBtn.addEventListener('click', () => {
+        this.showTimezoneSelector();
+      });
     }
+
+    // Inject directly into body
+    document.body.appendChild(timezoneColumn);
+    console.log('[Timezone Helper] ✓ Column injected successfully - should be visible on right side');
+    console.log('[Timezone Helper] Element ID:', timezoneColumn.id);
+    console.log('[Timezone Helper] Element in DOM:', document.getElementById('timezone-helper-column') !== null);
+    
+    this.observeCalendarEvents();
   }
 
   observeCalendarEvents() {
     // Start checking for calendar events
     this.updateTimezoneDisplay();
     
-    // Update every 2 seconds to catch new events
-    setInterval(() => {
+    // Update every 5 seconds to catch new events (less frequent to avoid performance issues)
+    this.updateInterval = setInterval(() => {
       this.updateTimezoneDisplay();
-    }, 2000);
+    }, 5000);
     
-    // Also observe DOM changes
-    const observer = new MutationObserver(() => {
-      this.updateTimezoneDisplay();
-    });
+    // Debounce the mutation observer to avoid excessive updates
+    let debounceTimer = null;
+    const debouncedUpdate = () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      debounceTimer = setTimeout(() => {
+        this.updateTimezoneDisplay();
+      }, 500); // Wait 500ms after last change
+    };
+    
+    // Observe DOM changes with debouncing
+    const observer = new MutationObserver(debouncedUpdate);
     
     const calendarMain = document.querySelector('[role="main"]');
     if (calendarMain) {
-      observer.observe(calendarMain, { childList: true, subtree: true });
+      // Only observe childList, not subtree to reduce overhead
+      observer.observe(calendarMain, { 
+        childList: true, 
+        subtree: false // Less aggressive observation
+      });
     }
+    
+    this.observer = observer;
   }
 
   updateTimezoneDisplay() {
-    const sidebarContent = document.getElementById('timezone-sidebar-content');
-    if (!sidebarContent) return;
+    const columnBody = document.getElementById('timezone-column-body');
+    if (!columnBody) return;
 
-    // Find all calendar events - Google Calendar uses specific selectors
-    const events = document.querySelectorAll('[data-eventid], [data-draggable-id], .Yfv1yd, [role="button"][data-draggable-id]');
-    
-    if (events.length === 0) {
-      sidebarContent.innerHTML = '<div class="timezone-status">No events visible. Navigate to week or day view.</div>';
-      return;
-    }
-    
-    // Extract unique times from visible events
-    const timeMap = new Map();
-    
-    events.forEach(event => {
-      // Try to find time information in the event
-      const timeText = event.getAttribute('aria-label') || event.textContent;
-      if (!timeText) return;
-      
-      // Extract times from the text (e.g., "Meeting, 2:00 PM")
-      const timeMatches = timeText.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/gi);
-      if (timeMatches) {
-        timeMatches.forEach(match => {
-          if (!timeMap.has(match)) {
-            const converted = this.convertTime(match);
-            timeMap.set(match, converted);
-          }
-        });
+    try {
+      // Limit the query to reduce performance impact - only search in main area
+      const calendarMain = document.querySelector('[role="main"]');
+      if (!calendarMain) {
+        columnBody.innerHTML = '<div class="timezone-status">Calendar not loaded</div>';
+        return;
       }
-    });
-    
-    if (timeMap.size === 0) {
-      sidebarContent.innerHTML = '<div class="timezone-status">No times detected</div>';
-      return;
+
+      // Find calendar events with a more specific query (limit to first 100)
+      const events = Array.from(calendarMain.querySelectorAll('[data-eventid], [data-draggable-id]')).slice(0, 100);
+      
+      if (events.length === 0) {
+        columnBody.innerHTML = '<div class="timezone-status">No events visible</div>';
+        return;
+      }
+      
+      // Extract unique times from visible events
+      const timeMap = new Map();
+      
+      // Limit processing to first 50 events to avoid performance issues
+      events.slice(0, 50).forEach(event => {
+        // Try to find time information in the event
+        const timeText = event.getAttribute('aria-label');
+        if (!timeText) return;
+        
+        // Extract times from the text (e.g., "Meeting, 2:00 PM")
+        const timeMatches = timeText.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/gi);
+        if (timeMatches) {
+          timeMatches.forEach(match => {
+            if (!timeMap.has(match) && timeMap.size < 20) { // Limit to 20 unique times
+              const converted = this.convertTime(match);
+              timeMap.set(match, converted);
+            }
+          });
+        }
+      });
+      
+      if (timeMap.size === 0) {
+        columnBody.innerHTML = '<div class="timezone-status">No times detected</div>';
+        return;
+      }
+      
+      // Display the conversions
+      let html = '';
+      timeMap.forEach((converted, original) => {
+        html += `
+          <div class="timezone-time-row">
+            <div class="time-original">${original}</div>
+            <div class="time-arrow">→</div>
+            <div class="time-converted">${converted}</div>
+          </div>
+        `;
+      });
+      
+      columnBody.innerHTML = html;
+    } catch (error) {
+      console.error('[Timezone Helper] Error updating display:', error);
+      columnBody.innerHTML = '<div class="timezone-status">Error loading times</div>';
     }
-    
-    // Display the conversions in a table format
-    let html = '<table class="timezone-table"><tbody>';
-    timeMap.forEach((converted, original) => {
-      html += `
-        <tr class="timezone-row">
-          <td class="time-local">${original}</td>
-          <td class="time-converted">${converted}</td>
-        </tr>
-      `;
-    });
-    html += '</tbody></table>';
-    
-    sidebarContent.innerHTML = html;
   }
 
   convertTime(timeString) {
@@ -310,10 +339,15 @@ class GmailTimezoneHelper {
         this.selectedTimezone = selectedRadio.value;
         chrome.storage.sync.set({ selectedTimezone: this.selectedTimezone });
         
-        // Update the display
-        const headerLabel = document.querySelector('.timezone-label');
+        console.log('[Timezone Helper] Timezone changed to:', this.selectedTimezone);
+        
+        // Update the display - use the correct ID
+        const headerLabel = document.getElementById('timezone-title-display');
         if (headerLabel) {
           headerLabel.textContent = this.getTimezoneDisplayName(this.selectedTimezone);
+          console.log('[Timezone Helper] Updated header to:', this.getTimezoneDisplayName(this.selectedTimezone));
+        } else {
+          console.log('[Timezone Helper] Could not find timezone-title-display element');
         }
         
         this.updateTimezoneDisplay();
@@ -358,8 +392,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'updateTimezone') {
     if (helperInstance) {
       helperInstance.selectedTimezone = request.timezone;
-      // Update the sidebar header
-      const label = document.querySelector('.timezone-sidebar-title');
+      // Update the column header
+      const label = document.getElementById('timezone-title-display');
       if (label) {
         label.textContent = helperInstance.getTimezoneDisplayName(request.timezone);
       }
@@ -373,16 +407,34 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // Re-initialize when Gmail navigates (SPA behavior)
 let lastUrl = location.href;
-new MutationObserver(() => {
+let navigationTimer = null;
+
+const navigationObserver = new MutationObserver(() => {
   const url = location.href;
   if (url !== lastUrl) {
     lastUrl = url;
-    setTimeout(() => {
-      // Only create new instance if calendar might be visible
-      if (helperInstance) {
+    
+    // Clear any pending navigation updates
+    if (navigationTimer) {
+      clearTimeout(navigationTimer);
+    }
+    
+    // Debounce navigation changes
+    navigationTimer = setTimeout(() => {
+      console.log('[Timezone Helper] Page navigation detected');
+      // Only reinitialize if we don't have a sidebar yet
+      if (helperInstance && !document.getElementById('timezone-helper-column')) {
         helperInstance.timezoneColumnAdded = false;
         helperInstance.waitForGmail();
       }
-    }, 1000);
+    }, 2000); // Wait 2 seconds for page to settle
   }
-}).observe(document, { subtree: true, childList: true });
+});
+
+// Only observe the body, not entire document
+if (document.body) {
+  navigationObserver.observe(document.body, { 
+    childList: true, 
+    subtree: false // Don't observe deeply
+  });
+}
